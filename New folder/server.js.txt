@@ -1,0 +1,45 @@
+const express = require("express");
+const cors = require("cors");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are a fun NPC in a Roblox game. Keep replies short, max 2 sentences."
+});
+
+app.use(cors());
+app.use(express.json());
+
+const playerChats = {};
+
+app.post("/ask", async (req, res) => {
+    try {
+        const { message, playerId } = req.body;
+
+        if (!message) {
+            return res.status(400).json({ error: "No message provided" });
+        }
+
+        if (!playerChats[playerId]) {
+            playerChats[playerId] = model.startChat({ history: [] });
+        }
+
+        const chat = playerChats[playerId];
+        const result = await chat.sendMessage(message);
+        const reply = result.response.text();
+
+        res.json({ reply });
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ error: "Something went wrong" });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+});
